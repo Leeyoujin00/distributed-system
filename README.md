@@ -2,9 +2,7 @@
 분산시스템 과제 repository
 
 ### hw1
-**과제명**
-
-UDP Echo 프로그램 만들기
+**과제명**  UDP Echo 프로그램 만들기
 
 **문제 설명**
 
@@ -15,9 +13,7 @@ UDP Echo 프로그램 만들기
 
 ### hw2
 
-**과제명**
-
-Distributed key-value stores 구현하기
+**과제명**  Distributed key-value stores 구현하기
 
 **문제 설명**
 
