@@ -1,6 +1,15 @@
 #include "util.h"
 
 int SERVER_PORT; // 서버 포트번호
+char* kv[DATASET_SIZE]; // 정적 key value stores
+void init_kvs(){
+  for(int i =0;i<DATASET_SIZE;i++){
+		kv[i] = malloc(VALUE_SIZE);
+		strcpy(kv[i], "DDDCCCCBBBBAAAA");
+		//printf("%s\n",kv[i]);
+	}
+
+}
 
 static volatile int quit = 0; // Trigger conditions for SIGINT
 void signal_handler(int signum) {
@@ -20,9 +29,6 @@ int main(int argc, char *argv[]) {
 
 	SERVER_PORT = atoi(argv[1]); // 입력받은 argument를 포트번호 변수에 넣어준다.
 
-	// 포트번호 출력해봄
-	printf("포트번호: %d ", SERVER_PORT);
-	
 	// 서버의 정보를 담을 소켓 구조체 생성 및 초기화
 	struct sockaddr_in srv_addr;
 	memset(&srv_addr, 0, sizeof(srv_addr));
@@ -43,24 +49,26 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	init_kvs(); // key-value store 초기화
+
 	int n = 0;
-  	struct KVS RecvMsg={0,}; // 수신용으로 쓸 메시지 구조체 생성 및 초기화
+  struct KVS RecvMsg={0,}; // 수신용으로 쓸 메시지 구조체 생성 및 초기화
 
 	struct sockaddr_in src_addr; // 패킷을 수신하였을 때, 해당 패킷을 보낸 송신자(Source)의 정보를 저장하기 위한 소켓 구조체
-  	socklen_t src_addr_len = sizeof(src_addr);
-
+  socklen_t src_addr_len = sizeof(src_addr);
+	size_t pkt_size = 0;
 	while (!quit) {
-		// client로부터 요청을 수신한다.
-		n = recvfrom(sock, &RecvMsg, sizeof(RecvMsg), 0, (struct sockaddr *)&src_addr, &src_addr_len);
-
-		if (n > 0) { // 만약 수신한 데이터가 0바이트를 초과한다면 (즉, 1바이트라도 수신했다면)
-			RecvMsg.type = READ_REP; // read request의 type을 read reply로 변경		}
-			printf("Key: %s Value: %s\n",RecvMsg.key, RecvMsg.value); // 수신한 내용을 출력해본다.
-	
-			strcpy(RecvMsg.value, "DDDCCCCBBBBAAAA"); // value 필드를 변경
-
-			// client에 이를 전송
-			sendto(sock, &RecvMsg, sizeof(RecvMsg), 0, (struct sockaddr *)&src_addr, src_addr_len); // 생성한 메시지를 client로 송신한다.
+		n = recvfrom(sock, &RecvMsg, sizeof(RecvMsg), MSG_DONTWAIT, (struct sockaddr *)&src_addr, &src_addr_len);
+		if (n > 0) {
+			if (RecvMsg.type == READ_REQ){
+				printf("Type: %s Key: %s\n",get_type(RecvMsg),RecvMsg.key); // 수신한 내용을 출력한다.
+				RecvMsg.type = READ_REP;
+				uint64_t index = hash64(RecvMsg.key) % DATASET_SIZE;
+				strcpy(RecvMsg.value, kv[index]);
+        		pkt_size = n + VALUE_SIZE;
+			}
+			sendto(sock, &RecvMsg, pkt_size, 0, (struct sockaddr *)&src_addr, sizeof(src_addr));
+      		strcpy(RecvMsg.value,""); // 버퍼 초기화
 		}
 	}
 
